@@ -1,0 +1,9 @@
+- name: "Ensure D: exists"
+  win_stat:
+    path: "D:"
+  register: d_drive
+
+- name: "Fail if D: does not exist"
+  fail:
+    msg: "D: does not exist"
+  when: not d_drive.stat.exists

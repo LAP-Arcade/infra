@@ -1,0 +1,9 @@
+
+- name: Check if OBS is installed
+  win_stat:
+    path: C:\Program Files\obs-studio\bin\64bit\obs64.exe
+  register: obs_file
+
+- name: Install OBS
+  win_shell: winget install --id=OBSProject.OBSStudio  --disable-interactivity
+  when: not obs_file.stat.exists

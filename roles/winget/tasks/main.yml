@@ -1,0 +1,10 @@
+- name: Get WinGet version
+  win_command: winget --version
+  register: winget_version
+  ignore_errors: true
+  changed_when: false
+
+- name: Fail if WinGet is not installed
+  fail:
+    msg: "WinGet is not installed"
+  when: winget_version is failed

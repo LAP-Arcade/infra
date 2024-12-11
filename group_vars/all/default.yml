@@ -1,0 +1,5 @@
+ansible_connection: psrp
+ansible_port: 5985
+ansible_user: LAP
+ansible_password: ''
+ansible_psrp_auth: ntlm
