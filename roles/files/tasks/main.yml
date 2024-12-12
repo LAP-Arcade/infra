@@ -1,9 +1,103 @@
-- name: "Ensure D: exists"
+- name: "Ensure {{ files_persistent_drive }} exists"
   win_stat:
-    path: "D:"
-  register: d_drive
+    path: "{{ files_persistent_drive }}"
+  register: persistent_drive
 
-- name: "Fail if D: does not exist"
+- name: "Fail if {{ files_persistent_drive }} does not exist"
   fail:
-    msg: "D: does not exist"
-  when: not d_drive.stat.exists
+    msg: "{{ files_persistent_drive }} does not exist"
+  when: not persistent_drive.stat.exists
+
+- set_fact:
+    _files_symlinks_yml: >
+      {% for symlink in files_persistent_symlinks %}
+
+        {% if (symlink | type_debug) != "dict" %}
+          {% if ":" in symlink %}
+
+      - source: '{{ symlink }}'
+        target: '{{ files_persistent_drive }}\{{ symlink | basename }}'
+
+          {% else %}
+
+      - source: '{{ ansible_user_dir }}\AppData\{{ symlink }}'
+        target: '{{ files_persistent_drive }}\AppData\{{ symlink }}'
+
+          {% endif %}
+
+        {% else %} {# dict #}
+
+          {% if ":" in symlink.source %}
+
+      - source: '{{ symlink.source }}'
+
+          {% else %}
+
+      - source: '{{ ansible_user_dir }}\AppData\{{ symlink.source }}'
+
+          {% endif %}
+          {% if ":" in symlink.target %}
+
+        target: '{{ symlink.target }}'
+
+          {% else %}
+
+        target: '{{ files_persistent_drive }}\{{ symlink.target }}'
+
+          {% endif %}
+
+        {% endif %}
+
+      {% endfor %}
+
+
+- set_fact:
+    _files_symlinks: "{{ _files_symlinks_yml | from_yaml }}"
+
+- name: Ensure symlinks source directories exist
+  win_file:
+    type: directory
+    path: "{{ item.source }}"
+  loop: "{{ _files_symlinks }}"
+  when: "not '.' in (item.source | basename)"
+
+
+# win_file variant
+# Updates access and modification timestamps if file exists
+# And will always trigger "changed"
+
+# - name: Ensure symlinks source files exist
+#   win_file:
+#     path: "{{ item.source }}"
+#     state: touch
+#   loop: "{{ _files_symlinks }}"
+#   register: _debug
+#   when: "'.' in (item.source | basename)"
+
+# win_shell variant, custom script based on win_file's source code
+# Will not trigger "changed" if the file already exists, and will not update
+# timestamps
+- name: Ensure symlinks source files exist
+  win_shell: |
+    if (-not (Test-Path -LiteralPath "{{ item.source }}")) {
+      Write-Output $null | Out-File -LiteralPath "{{ item.source }}"
+      echo changed
+    }
+  loop: "{{ _files_symlinks }}"
+  changed_when: "'changed' in _files_symlinks_result.stdout_lines"
+  register: _files_symlinks_result
+  when: "'.' in (item.source | basename)"
+
+
+- name: Create symlinks
+  win_shell: |
+    if (Test-Path -LiteralPath "{{ item.target }}") {
+      echo exists
+      exit 0
+    }
+    Move-Item -Path "{{ item.source }}" -Destination "{{ item.target }}"
+    New-Item -ItemType SymbolicLink -Path "{{ item.source }}" -Value "{{ item.target }}"
+    echo created
+  loop: "{{ _files_symlinks }}"
+  register: _files_symlinks_result
+  changed_when: "'created' in _files_symlinks_result.stdout_lines"

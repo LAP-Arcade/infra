@@ -3,3 +3,11 @@ ansible_port: 5985
 ansible_user: LAP
 ansible_password: ''
 ansible_psrp_auth: ntlm
+
+files_persistent_drive: "D:"
+files_persistent_symlinks:
+  - Roaming\obs-studio
+  - Roaming\RustDesk
+  - Local\rustdesk
+  - source: Roaming\Microsoft\Windows\Start Menu\Programs\Startup\startup.bat
+    target: startup.bat
