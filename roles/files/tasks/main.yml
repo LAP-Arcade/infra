@@ -101,3 +101,8 @@
   loop: "{{ _files_symlinks }}"
   register: _files_symlinks_result
   changed_when: "'created' in _files_symlinks_result.stdout_lines"
+
+- name: Write startup.bat
+  win_template:
+    src: startup.bat.j2
+    dest: '{{ files_persistent_drive }}\startup.bat'

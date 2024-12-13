@@ -1,0 +1,8 @@
+REM When this file exists, a prompt asking to run in safe mode will block the
+REM startup, since we want an unattended setup, we always remove it
+del %APPDATA%\obs-studio\safe_mode
+
+cd /d "C:\Program Files\obs-studio\bin\64bit"
+"C:\Program Files\obs-studio\bin\64bit\obs64.exe" --collection "{{ game }}" --profile "{{ game }}" --scene "{{ game }}"{% for flag in files_startup_obs_flags %} --{{ flag }}{% endfor %}
+
+REM vim: ft=bat

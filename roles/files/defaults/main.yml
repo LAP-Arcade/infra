@@ -1,0 +1,5 @@
+files_startup_obs_flags:
+  - startstreaming
+  - startreplaybuffer
+  - disable-shutdown-check
+  - disable-updater

@@ -11,3 +11,5 @@ files_persistent_symlinks:
   - Local\rustdesk
   - source: Roaming\Microsoft\Windows\Start Menu\Programs\Startup\startup.bat
     target: startup.bat
+
+game: ''
