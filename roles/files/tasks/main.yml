@@ -126,3 +126,21 @@
   win_copy:
     src: filter.bat
     dest: '{{ files_persistent_drive }}\Scripts\filter.bat'
+
+- name: Create uwfmgr shortcuts in Scripts folder
+  win_shortcut:
+    src: '{{ files_persistent_drive }}\Scripts\filter.bat'
+    dest: '{{ files_persistent_drive }}\Scripts\{{ item | title }} filter.lnk'
+    arguments: "{{ item }}"
+  loop:
+    - enable
+    - disable
+
+- name: Copy ufwmgr scripts to the desktop
+  win_copy:
+    src: '{{ files_persistent_drive }}\Scripts\{{ item }} filter.lnk'
+    dest: '{{ ansible_user_dir }}\Desktop\{{ item }} filter.lnk'
+    remote_src: true
+  loop:
+    - Enable
+    - Disable
