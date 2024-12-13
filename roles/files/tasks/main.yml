@@ -106,7 +106,23 @@
   register: _files_symlinks_result
   changed_when: "'changed' in _files_symlinks_result.stdout_lines"
 
+- name: Create directory structure on persistent drive
+  win_file:
+    state: directory
+    path: '{{ files_persistent_drive }}\{{ item }}'
+  loop:
+    - AppData\Local
+    - AppData\Roaming
+    - Downloads
+    - Programs
+    - Scripts
+
 - name: Write startup.bat
   win_template:
     src: startup.bat.j2
     dest: '{{ files_persistent_drive }}\startup.bat'
+
+- name: Create uwfmgr script
+  win_copy:
+    src: filter.bat
+    dest: '{{ files_persistent_drive }}\Scripts\filter.bat'

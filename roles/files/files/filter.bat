@@ -1,0 +1,3 @@
+uwfmgr filter %*
+
+pause
