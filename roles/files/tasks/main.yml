@@ -91,16 +91,20 @@
 
 - name: Create symlinks
   win_shell: |
-    if (Test-Path -LiteralPath "{{ item.target }}") {
-      echo exists
-      exit 0
+    if (
+      (Test-Path -LiteralPath "{{ item.source }}") -and
+      ((Get-Item -LiteralPath "{{ item.source }}").LinkType -ne "SymbolicLink")
+    ) {
+      Move-Item -Path "{{ item.source }}" -Destination "{{ item.target }}"
+      echo changed
     }
-    Move-Item -Path "{{ item.source }}" -Destination "{{ item.target }}"
-    New-Item -ItemType SymbolicLink -Path "{{ item.source }}" -Value "{{ item.target }}"
-    echo created
+    if (-not (Test-Path -LiteralPath "{{ item.source }}")) {
+      New-Item -ItemType SymbolicLink -Path "{{ item.source }}" -Value "{{ item.target }}"
+      echo changed
+    }
   loop: "{{ _files_symlinks }}"
   register: _files_symlinks_result
-  changed_when: "'created' in _files_symlinks_result.stdout_lines"
+  changed_when: "'changed' in _files_symlinks_result.stdout_lines"
 
 - name: Write startup.bat
   win_template:
