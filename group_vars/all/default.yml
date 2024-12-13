@@ -1,8 +1,11 @@
 ansible_connection: psrp
 ansible_port: 5985
-ansible_user: LAP
-ansible_password: ''
+ansible_user: admin
+ansible_password: admin
 ansible_psrp_auth: ntlm
+
+kiosk_user: LAP
+kiosk_desktop: "{{ ansible_user }}\\Desktop"
 
 files_persistent_drive: "D:"
 files_persistent_symlinks:

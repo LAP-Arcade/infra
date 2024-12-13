@@ -139,7 +139,7 @@
 - name: Copy ufwmgr scripts to the desktop
   win_copy:
     src: '{{ files_persistent_drive }}\Scripts\{{ item }} filter.lnk'
-    dest: '{{ ansible_user_dir }}\Desktop\{{ item }} filter.lnk'
+    dest: '{{ kiosk_desktop }}\{{ item }} filter.lnk'
     remote_src: true
   loop:
     - Enable

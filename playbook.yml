@@ -1,4 +1,7 @@
-- hosts: all
+- hosts: all  # noqa schema[playbook]
+  become: true
+  become_user: "{{ kiosk_user }}"
+  become_method: runas
   roles:
     - files
     - winget
