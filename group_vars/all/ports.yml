@@ -1,0 +1,3 @@
+ports:
+  homeassistant: 8123
+  mqtt: 1883

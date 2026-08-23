@@ -1,4 +1,4 @@
-- hosts: all  # noqa schema[playbook]
+- hosts: streaming_clients
   become: true
   become_user: "{{ kiosk_user }}"
   become_method: runas

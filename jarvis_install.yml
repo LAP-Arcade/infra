@@ -1,0 +1,72 @@
+- hosts: jarvis
+  become: true
+  tasks:
+    - name: Configure hostname
+      hostname:
+        name: jarvis
+    - name: Configure firewall
+      firewalld:
+        port: "{{ item.port | default(omit) }}"
+        service: "{{ item.service | default(omit) }}"
+        permanent: true
+        immediate: true
+        state: enabled
+      loop:
+        - port: "{{ ports.homeassistant }}/tcp"
+        # needed for Matter device discovery
+        - service: mdns
+        - port: "{{ ports.mqtt }}/tcp"
+      tags: firewall
+    - include_role:
+        name: mosquitto
+    - include_role:
+        name: containers
+        apply:
+          tags: containers
+      tags: always
+      vars:
+        quadlets:
+          homeassistant:
+            image: ghcr.io/home-assistant/home-assistant
+            tag: stable
+            scope: system
+            ports:
+              - "0.0.0.0:{{ ports.homeassistant }}:8123"
+            volumes:
+              - /etc/homeassistant:/config
+              - /var/run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+            cap_add:
+              - NET_ADMIN
+              - NET_RAW
+            env:
+              TZ: Europe/Paris
+            network: host
+            podman: --privileged
+          matter_server:
+            image: ghcr.io/matter-js/matterjs-server
+            tag: stable
+            scope: system
+            user: root
+            exec: |-
+              --storage-path /data
+              --listen-address 127.0.0.1
+              --primary-interface enp1s0
+            volumes:
+              - /etc/matter-server:/data:Z
+              - /run/dbus:/run/dbus:ro
+            network: host
+          mosquitto:
+            image: docker.io/library/eclipse-mosquitto
+            tag: "2"
+            scope: system
+            entrypoint: /mosquitto/config/entrypoint.sh
+            env_file: /etc/mosquitto/env
+            volumes:
+              - /etc/mosquitto/config:/mosquitto/config:Z
+              - /etc/mosquitto/data:/mosquitto/data:Z
+            network: host
+    - include_role:
+        name: homeassistant
+        apply:
+          tags: homeassistant
+      tags: always

@@ -1,0 +1,8 @@
+switch:
+  - platform: group
+    name: Arcade Cabinets
+    entities:
+      - switch.dojo_chunithm
+      - switch.dojo_iidx_sdvx
+      - switch.octogone_jubeat_x2
+      - switch.wacca_x2

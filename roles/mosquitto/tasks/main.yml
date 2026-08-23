@@ -1,0 +1,23 @@
+- name: Ensure mosquitto directories exist
+  include_role:
+    name: common
+    tasks_from: create_directory
+  vars:
+    path: "{{ item }}"
+  loop:
+    - /etc/mosquitto/config
+    - /etc/mosquitto/data
+
+- name: Install mosquitto.conf
+  template:
+    src: mosquitto.conf.j2
+    dest: /etc/mosquitto/config/mosquitto.conf
+    mode: u=rw,g=r,o=r
+  notify: restart mosquitto
+
+- name: Install entrypoint
+  copy:
+    src: entrypoint.sh
+    dest: /etc/mosquitto/config/entrypoint.sh
+    mode: u=rwx,g=rx,o=rx
+  notify: restart mosquitto

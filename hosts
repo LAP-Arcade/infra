@@ -1,1 +1,5 @@
+[home_server]
+jarvis
+
+[streaming_clients]
 john ansible_host=192.168.0.9
