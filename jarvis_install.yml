@@ -12,9 +12,10 @@
         immediate: true
         state: enabled
       loop:
+        - service: dns
+        - service: mdns
         - port: "{{ ports.homeassistant }}/tcp"
         # needed for Matter device discovery
-        - service: mdns
         - port: "{{ ports.mqtt }}/tcp"
       tags: firewall
     - include_role:
@@ -70,3 +71,26 @@
         apply:
           tags: homeassistant
       tags: always
+    - include_role:
+        name: dnsmasq
+        apply:
+          tags: dnsmasq
+      tags: always
+      vars:
+        dns_local_suffixes:
+          - lan
+        dns_servers:
+          - 192.168.0.1 # UDR
+    - include_role:
+        name: hosts
+        apply:
+          tags: hosts
+      tags: always
+      vars:
+        hosts_map:
+          192.168.1.254: freebox.lan
+          192.168.0.1: udr.lan
+          192.168.0.193: jarvis.lan ha.jarvis.lan
+          192.168.27.65: jarvis.lan ha.jarvis.lan
+        hosts_map_to_delete:
+          192.168.27.65: jarvis.vpn.lan
