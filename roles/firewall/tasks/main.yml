@@ -1,0 +1,48 @@
+- name: Gather firewalld state
+  ansible.posix.firewalld_info:
+  register: _firewall_state
+
+- name: Set firewall zone
+  set_fact:
+    _firewall_zone: "{{ _firewall_state.firewalld_info.default_zone }}"
+
+- name: Enable desired firewall services
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ firewall_services }}"
+
+- name: Enable desired firewall ports
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ firewall_ports }}"
+
+- name: Disable undesired firewall services
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: disabled
+  loop: >-
+    {{
+      _firewall_state.firewalld_info.zones[_firewall_zone].services
+      | difference(firewall_services)
+    }}
+
+- name: Disable undesired firewall ports
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: disabled
+  loop: >-
+    {{
+      _firewall_state.firewalld_info.zones[_firewall_zone].ports
+      | map('join', '/')
+      | difference(firewall_ports)
+    }}

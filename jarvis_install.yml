@@ -1,76 +1,118 @@
 - hosts: jarvis
   become: true
+  vars:
+    quadlets:
+      homeassistant:
+        image: ghcr.io/home-assistant/home-assistant
+        tag: stable
+        scope: system
+        volumes:
+          - /etc/homeassistant:/config
+          - /var/run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+        cap_add:
+          - NET_ADMIN
+          - NET_RAW
+        env:
+          TZ: Europe/Paris
+        network: host
+        podman: --privileged
+      matter_server:
+        image: ghcr.io/matter-js/matterjs-server
+        tag: stable
+        scope: system
+        user: root
+        exec: |-
+          --storage-path /data
+          --listen-address 127.0.0.1
+          --primary-interface enp1s0
+        volumes:
+          - /etc/matter-server:/data:Z
+          - /run/dbus:/run/dbus:ro
+        network: host
+      mosquitto:
+        image: docker.io/library/eclipse-mosquitto
+        tag: "2"
+        scope: system
+        entrypoint: /mosquitto/config/entrypoint.sh
+        env_file: /etc/mosquitto/env
+        volumes:
+          - /etc/mosquitto/config:/mosquitto/config:Z
+          - /etc/mosquitto/data:/mosquitto/data:Z
+        network: host
+      caddy:
+        image: docker.io/library/caddy
+        tag: "2"
+        scope: system
+        volumes:
+          - /etc/caddy:/etc/caddy:Z
+          - /var/lib/caddy:/data/caddy:Z
+          - /var/log/caddy:/var/log/caddy:Z
+          - /srv/www:/srv/www:ro,Z
+        network: host
   tasks:
     - name: Configure hostname
       hostname:
         name: jarvis
-    - name: Configure firewall
-      firewalld:
-        port: "{{ item.port | default(omit) }}"
-        service: "{{ item.service | default(omit) }}"
-        permanent: true
-        immediate: true
-        state: enabled
-      loop:
-        - service: dns
-        - service: mdns
-        - port: "{{ ports.homeassistant }}/tcp"
-        # needed for Matter device discovery
-        - port: "{{ ports.mqtt }}/tcp"
+    - include_role:
+        name: firewall
+        apply:
+          tags: firewall
       tags: firewall
+      vars:
+        firewall_services:
+          - ssh
+          - cockpit
+          - dhcpv6-client
+          - dns
+          - mdns # needed for Matter device discovery
+          - http
+        firewall_ports:
+          - "{{ ports.mqtt }}/tcp"
     - include_role:
         name: mosquitto
+    - name: Deploy /srv/www
+      synchronize:
+        src: www/
+        dest: /srv/www/
+        recursive: true
+        delete: true
+        rsync_opts:
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+      tags: www
     - include_role:
         name: containers
         apply:
           tags: containers
       tags: always
+    - include_role:
+        name: caddy
+        apply:
+          tags: caddy
+      tags: always
       vars:
-        quadlets:
-          homeassistant:
-            image: ghcr.io/home-assistant/home-assistant
-            tag: stable
-            scope: system
-            ports:
-              - "0.0.0.0:{{ ports.homeassistant }}:8123"
-            volumes:
-              - /etc/homeassistant:/config
-              - /var/run/dbus/system_bus_socket:/run/dbus/system_bus_socket
-            cap_add:
-              - NET_ADMIN
-              - NET_RAW
-            env:
-              TZ: Europe/Paris
-            network: host
-            podman: --privileged
-          matter_server:
-            image: ghcr.io/matter-js/matterjs-server
-            tag: stable
-            scope: system
-            user: root
-            exec: |-
-              --storage-path /data
-              --listen-address 127.0.0.1
-              --primary-interface enp1s0
-            volumes:
-              - /etc/matter-server:/data:Z
-              - /run/dbus:/run/dbus:ro
-            network: host
-          mosquitto:
-            image: docker.io/library/eclipse-mosquitto
-            tag: "2"
-            scope: system
-            entrypoint: /mosquitto/config/entrypoint.sh
-            env_file: /etc/mosquitto/env
-            volumes:
-              - /etc/mosquitto/config:/mosquitto/config:Z
-              - /etc/mosquitto/data:/mosquitto/data:Z
-            network: host
+        caddy_https: false
+        caddy_prometheus: false
+        caddy_command: >-
+          podman run --rm --security-opt label=disable
+          -v /etc/caddy:/etc/caddy caddy:{{ quadlets.caddy.tag }} caddy
+        http_domain: false
+        caddy_entries:
+          - domain: ha.jarvis.lan
+            file: homeassistant
+            reverses:
+              - to: localhost:{{ ports.homeassistant }}
+          - domain: jarvis.lan
+            file: jarvis
+            root: /srv/www/jarvis.lan
     - include_role:
         name: homeassistant
         apply:
           tags: homeassistant
       tags: always
+      vars:
+        homeassistant_trusted_proxies:
+          - 127.0.0.1
+          - ::1
     - include_role:
         name: dnsmasq
         apply:
@@ -90,7 +132,11 @@
         hosts_map:
           192.168.1.254: freebox.lan
           192.168.0.1: udr.lan
+          192.168.0.81: ganymede.lan
+          192.168.0.98: octogone.lan
+          192.168.0.179: astro.lan
           192.168.0.193: jarvis.lan ha.jarvis.lan
+          192.168.0.199: wacca-mythos.lan
           192.168.27.65: jarvis.lan ha.jarvis.lan
         hosts_map_to_delete:
           192.168.27.65: jarvis.vpn.lan
