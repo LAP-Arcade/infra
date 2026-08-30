@@ -69,6 +69,11 @@
         firewall_ports:
           - "{{ ports.mqtt }}/tcp"
     - include_role:
+        name: wireguard
+        apply:
+          tags: wireguard
+      tags: always
+    - include_role:
         name: mosquitto
     - name: Deploy /srv/www
       synchronize:

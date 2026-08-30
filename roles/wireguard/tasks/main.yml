@@ -1,0 +1,28 @@
+- name: Ensure PersistentKeepalive is set for the wg0 peer
+  lineinfile:
+    path: /etc/wireguard/wg0.conf
+    regexp: '^PersistentKeepalive\s*='
+    line: "PersistentKeepalive = {{ wireguard_persistent_keepalive }}"
+    insertafter: '^AllowedIPs'
+  register: _wireguard_wg0_conf
+
+- name: Check whether the wg0 NetworkManager connection exists
+  stat:
+    path: /etc/NetworkManager/system-connections/wg0.nmconnection
+  register: _wireguard_wg0_nmconnection
+
+- name: Recreate the wg0 NetworkManager connection from wg0.conf
+  when: _wireguard_wg0_conf.changed or not _wireguard_wg0_nmconnection.stat.exists
+  block:
+    - name: Delete existing wg0 NetworkManager connection
+      command: nmcli connection delete wg0
+      when: _wireguard_wg0_nmconnection.stat.exists
+      changed_when: true
+
+    - name: Import wg0 NetworkManager connection from wg0.conf
+      command: nmcli connection import type wireguard file /etc/wireguard/wg0.conf
+      changed_when: true
+
+    - name: Bring up the wg0 NetworkManager connection
+      command: nmcli connection up wg0
+      changed_when: true
