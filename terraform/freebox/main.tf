@@ -2,7 +2,7 @@ locals {
   # order matters here, ip_reservation is based on list index
   vpn_users = [
     "jarvis", # 192.168.27.65
-    "tina", # 192.168.27.66... etc
+    "tina-laptop", # 192.168.27.66... etc
     "tina-mobile",
     "adamaq01",
     "adamaq02",
@@ -65,7 +65,12 @@ import {
 resource "freebox_vpn_user" "vpn_users" {
   for_each = { for index, login in local.vpn_users : login => index }
 
-  login = each.key
-  type  = "wireguard"
+  login          = each.key
+  type           = "wireguard"
   ip_reservation = "192.168.27.${65 + each.value}"
+}
+
+output "vpn_users" {
+  value     = { for login, user in freebox_vpn_user.vpn_users : login => user.wireguard_config }
+  sensitive = true
 }
