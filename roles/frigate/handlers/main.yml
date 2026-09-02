@@ -1,0 +1,5 @@
+- name: restart frigate
+  systemd:
+    name: frigate
+    state: restarted
+    enabled: true

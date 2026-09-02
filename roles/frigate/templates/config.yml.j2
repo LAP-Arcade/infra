@@ -1,0 +1,35 @@
+mqtt:
+  enabled: false
+version: 0.17-0
+tls:
+  enabled: false
+ffmpeg:
+  hwaccel_args: preset-vaapi
+  output_args:
+    record: "-f segment -segment_time 60 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v copy -c:a aac"
+cameras:
+{% for stream in frigate_streams %}
+{% set camera_name = stream | regex_replace('^.*@([a-zA-Z0-9_-]+)\..*$', '\\1') %}
+  {{ camera_name }}:
+    ffmpeg:
+      inputs:
+        - path: "{{ stream }}"
+          roles:
+            - detect
+            - record
+    detect:
+      enabled: true
+      width: 1280
+      height: 720
+      fps: 5
+    record:
+      enabled: true
+      continuous:
+        days: 14
+      alerts:
+        retain:
+          days: 14
+      detections:
+        retain:
+          days: 14
+{% endfor %}

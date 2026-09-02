@@ -1,0 +1,15 @@
+- name: Ensure /etc/frigate exists
+  include_role:
+    name: common
+    tasks_from: create_directory
+  vars:
+    path: /etc/frigate
+
+- name: Install Frigate config
+  template:
+    src: config.yml.j2
+    dest: /etc/frigate/config.yml
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: restart frigate

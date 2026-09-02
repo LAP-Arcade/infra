@@ -9,6 +9,7 @@
         volumes:
           - /etc/homeassistant:/config
           - /var/run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+          - /media/cctv:/media/cctv:Z
         cap_add:
           - NET_ADMIN
           - NET_RAW
@@ -49,6 +50,57 @@
           - /var/log/caddy:/var/log/caddy:Z
           - /srv/www:/srv/www:ro,Z
         network: host
+      # restreamer:
+      #   image: datarhei/restreamer
+      #   tag: vaapi-latest
+      #   scope: system
+      #   podman: --privileged
+      #   volumes:
+      #     - /dev/dri:/dev/dri:Z
+      #     - /etc/restreamer:/core/config:Z
+      #     - /usr/local/share/restreamer:/core/data:Z
+      #     - /media/cctv:/media/cctv:Z
+      #   ports:
+      #     - 8080:8080
+      #     - 8181:8181
+      #     - 1935:1935
+      #     - 1936:1936
+      #     - 6000:6000/udp
+      # shinobi:
+      #   image: registry.gitlab.com/shinobi-systems/shinobi
+      #   tag: dev
+      #   scope: system
+      #   volumes:
+      #     - /usr/local/share/shinobi/database:/var/lib/mysql:Z
+      #     - /usr/local/share/shinobi/data:/home/Shinobi:Z
+      #     - /dev/shm/shinobiStreams:/dev/shm/streams:Z
+      #     - /etc/localtime:/etc/localtime:ro,Z
+      #     - /media/cctv:/media/cctv:Z
+      #   ports:
+      #     - 8080:8080
+        # network: host
+      frigate:
+        image: ghcr.io/blakeblackshear/frigate
+        tag: stable
+        scope: system
+        shm_size: 256m
+        podman: --privileged
+        devices:
+          - /dev/dri/renderD128
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+          - /etc/frigate:/config:Z
+          - /media/cctv:/media/frigate:Z
+        tmpfs:
+          - /tmp/cache:size=1000000000
+        env:
+          TZ: Europe/Paris
+        env_file: /etc/frigate/env
+        ports:
+          - 8971:8971
+          # - 8554:8554
+          # - 8555:8555/tcp
+          # - 8555:8555/udp
   tasks:
     - name: Configure hostname
       hostname:
@@ -84,6 +136,15 @@
         rsync_opts:
           - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
       tags: www
+    - include_role:
+        name: frigate
+        apply:
+          tags: frigate
+      tags: always
+      vars:
+        frigate_streams:
+          - "rtsp://mottie:{FRIGATE_RTSP_PASSWORD}@dojo.cam:554/stream2"
+          - "rtsp://mottie:{FRIGATE_RTSP_PASSWORD}@octogone.cam:554/stream2"
     - include_role:
         name: containers
         apply:
