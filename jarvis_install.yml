@@ -6,6 +6,9 @@
         image: ghcr.io/home-assistant/home-assistant
         tag: stable
         scope: system
+        memory_high: 3G
+        memory_max: 4G
+        memory_swap_max: 1G
         volumes:
           - /etc/homeassistant:/config
           - /var/run/dbus/system_bus_socket:/run/dbus/system_bus_socket
