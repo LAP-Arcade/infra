@@ -1,0 +1,86 @@
+- name: Set the swap size
+  shell:
+    executable: /bin/bash
+    cmd: |
+      set -euo pipefail
+      raw=$(swapon --show=NAME --noheadings | head -1)
+      if [[ -z "$raw" ]]; then exit 0; fi
+      dev=/dev/mapper/$(dmsetup info -c --noheadings -o name "$raw")
+      if [[ "$(numfmt --from=iec {{ kernel_swap_size }})" == "$(blockdev --getsize64 "$dev")" ]]; then exit 0; fi
+      # /etc/fstab and the resume= kernel argument both key off this UUID.
+      uuid=$(blkid -s UUID -o value "$dev")
+      swapoff "$dev"
+      lvresize --fs ignore -f -L {{ kernel_swap_size }} "$dev"
+      mkswap -U "$uuid" "$dev"
+      swapon "$dev"
+      echo resized
+  register: _kernel_swap
+  changed_when: "'resized' in _kernel_swap.stdout"
+  when: kernel_swap_size | length > 0
+
+- name: Apply sysctl settings
+  copy:
+    content: |
+      {% for key, value in kernel_sysctls | dictsort %}
+      {{ key }} = {{ value }}
+      {% endfor %}
+    dest: /etc/sysctl.d/90-ansible.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  when: kernel_sysctls | length > 0
+  notify: reload sysctl
+
+- name: Gather boot loader entries
+  command: grubby --info=ALL
+  register: _kernel_entries
+  changed_when: false
+  check_mode: false
+
+- name: Gather the running kernel command line
+  slurp:
+    src: /proc/cmdline
+  register: _kernel_running
+
+- name: Set kernel argument state
+  set_fact:
+    _kernel_args_missing: >-
+      {{ kernel_args | reject('in', _kernel_entries.stdout) | list }}
+    _kernel_args_pending: >-
+      {{ kernel_args | reject('in', _kernel_running.content | b64decode) | list }}
+
+- name: Add kernel arguments to installed kernels
+  command: >-
+    grubby --update-kernel=ALL --args="{{ _kernel_args_missing | join(' ') }}"
+  when: _kernel_args_missing | length > 0
+
+- name: Add kernel arguments for future kernel installs
+  lineinfile:
+    path: /etc/kernel/cmdline
+    regexp: '^(?!.*{{ item | regex_escape }})(.*\S)\s*$'
+    line: '\1 {{ item }}'
+    backrefs: true
+  loop: "{{ kernel_args }}"
+
+- name: Add kernel arguments to the GRUB defaults
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(?!.*{{ item | regex_escape }})(.*)"$'
+    line: 'GRUB_CMDLINE_LINUX="\1 {{ item }}"'
+    backrefs: true
+  loop: "{{ kernel_args }}"
+
+- name: Reboot to apply the new kernel command line
+  reboot:
+  when:
+    - _kernel_args_pending | length > 0
+    - kernel_reboot | bool
+
+- name: Report the pending reboot
+  debug:
+    msg: >-
+      The running kernel is missing {{ _kernel_args_pending | join(' ') }}.
+      Re-run with -e kernel_reboot=true to reboot and apply it.
+  when:
+    - _kernel_args_pending | length > 0
+    - not kernel_reboot | bool

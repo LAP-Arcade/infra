@@ -1,0 +1,4 @@
+kernel_args: []
+kernel_sysctls: {}
+kernel_swap_size: ""
+kernel_reboot: false
