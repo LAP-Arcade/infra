@@ -2,3 +2,4 @@ pydantic-settings
 discord.py
 pyyaml
 python-dotenv
+requests
