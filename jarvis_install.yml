@@ -53,22 +53,24 @@
           - /var/log/caddy:/var/log/caddy:Z
           - /srv/www:/srv/www:ro,Z
         network: host
-      # restreamer:
-      #   image: datarhei/restreamer
-      #   tag: vaapi-latest
-      #   scope: system
-      #   podman: --privileged
-      #   volumes:
-      #     - /dev/dri:/dev/dri:Z
-      #     - /etc/restreamer:/core/config:Z
-      #     - /usr/local/share/restreamer:/core/data:Z
-      #     - /media/cctv:/media/cctv:Z
-      #   ports:
-      #     - 8080:8080
-      #     - 8181:8181
-      #     - 1935:1935
-      #     - 1936:1936
-      #     - 6000:6000/udp
+      restreamer:
+        image: datarhei/restreamer
+        tag: vaapi-latest
+        scope: system
+        podman: --privileged
+        volumes:
+          - /dev/dri:/dev/dri:Z
+          - /etc/restreamer:/core/config:Z
+          - /usr/local/share/restreamer:/core/data:Z
+          - /media/cctv:/media/cctv:Z
+        ports:
+          - 8080:8080
+          - 8181:8181
+          - 1935:1935
+          - 1936:1936
+          - 6000:6000/udp
+        enabled: false
+        state: stopped
       # shinobi:
       #   image: registry.gitlab.com/shinobi-systems/shinobi
       #   tag: dev
@@ -108,6 +110,44 @@
     - name: Configure hostname
       hostname:
         name: jarvis
+
+    - include_role:
+        name: kernel
+        apply:
+          tags: kernel
+      tags: always
+      vars:
+        kernel_args:
+          - systemd.tpm2_wait=false
+          - psi=1 # for systemd-oomd
+        kernel_sysctls:
+          kernel.panic: 10
+          kernel.panic_on_oops: 1
+        kernel_swap_size: 4G
+
+    - include_role:
+        name: watchdog
+        apply:
+          tags: watchdog
+      tags: always
+
+    - name: Install packages
+      package:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - htop
+          - ncdu
+      tags: packages
+    - name: Remove packages
+      package:
+        name: "{{ packages }}"
+        state: absent
+      vars:
+        packages: []
+      tags: packages
+
     - include_role:
         name: firewall
         apply:
@@ -123,13 +163,16 @@
           - http
         firewall_ports:
           - "{{ ports.mqtt }}/tcp"
+
     - include_role:
         name: wireguard
         apply:
           tags: wireguard
       tags: always
+
     - include_role:
         name: mosquitto
+
     - name: Deploy /srv/www
       synchronize:
         src: www/
@@ -139,6 +182,7 @@
         rsync_opts:
           - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
       tags: www
+
     - include_role:
         name: frigate
         apply:
@@ -153,6 +197,7 @@
         apply:
           tags: containers
       tags: always
+
     - include_role:
         name: caddy
         apply:
@@ -173,11 +218,13 @@
           - domain: jarvis.lan
             file: jarvis
             root: /srv/www/jarvis.lan
+
     - include_role:
         name: homeassistant
         apply:
           tags: homeassistant
       tags: always
+
     - include_role:
         name: dnsmasq
         apply:
@@ -187,7 +234,9 @@
         dns_local_suffixes:
           - lan
         dns_servers:
-          - 192.168.0.1 # UDR
+          # - 192.168.0.1 # UDR
+          - 8.8.8.8
+
     - include_role:
         name: hosts
         apply:
@@ -195,13 +244,17 @@
       tags: always
       vars:
         hosts_map:
-          192.168.1.254: freebox.lan
+          # UDR LAN
           192.168.0.1: udr.lan
           192.168.0.81: ganymede.lan
           192.168.0.98: octogone.lan
           192.168.0.179: astro.lan
-          192.168.0.193: jarvis.lan ha.jarvis.lan
+          # 192.168.0.193: jarvis.lan ha.jarvis.lan
           192.168.0.199: wacca-mythos.lan
+          # Freebox LAN
+          192.168.1.148: jarvis.lan ha.jarvis.lan
+          192.168.1.254: freebox.lan
+          # VPN LAN
           192.168.27.65: jarvis.lan ha.jarvis.lan
         hosts_map_to_delete:
           192.168.27.65: jarvis.vpn.lan
