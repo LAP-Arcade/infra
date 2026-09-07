@@ -1,0 +1,2 @@
+_frigate_cameras: >-
+  {{ frigate_streams | map('regex_replace', '^.*@([a-zA-Z0-9_-]+)\..*$', '\1') | list }}
