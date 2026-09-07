@@ -24,12 +24,14 @@ cameras:
       fps: 5
     record:
       enabled: true
-      continuous:
+      motion:
         days: 14
       alerts:
         retain:
           days: 14
+          mode: motion
       detections:
         retain:
           days: 14
+          mode: motion
 {% endfor %}
