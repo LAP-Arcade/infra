@@ -1,0 +1,8 @@
+watchdog_runtime_sec: 60s
+watchdog_reboot_sec: 2min
+
+# systemd-oomd kills the greediest cgroup before swap is exhausted.
+watchdog_oomd_enabled: true
+watchdog_oomd_swap_limit: 80%
+watchdog_oomd_memory_pressure_limit: 60%
+watchdog_oomd_memory_pressure_duration_sec: 30s

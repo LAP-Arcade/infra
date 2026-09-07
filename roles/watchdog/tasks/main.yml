@@ -1,0 +1,79 @@
+- name: Ensure drop-in directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+  loop:
+    - /etc/systemd/system.conf.d
+    - /etc/systemd/oomd.conf.d
+    - /etc/systemd/system/-.slice.d
+
+- name: Configure the hardware watchdog
+  copy:
+    content: |
+      [Manager]
+      RuntimeWatchdogSec={{ watchdog_runtime_sec }}
+      RebootWatchdogSec={{ watchdog_reboot_sec }}
+    dest: /etc/systemd/system.conf.d/10-watchdog.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: reexec systemd
+
+- name: Install systemd-oomd
+  package:
+    name: systemd-oomd
+    state: present
+  when: watchdog_oomd_enabled | bool
+
+- name: Configure systemd-oomd
+  copy:
+    content: |
+      [OOM]
+      SwapUsedLimit={{ watchdog_oomd_swap_limit }}
+      DefaultMemoryPressureLimit={{ watchdog_oomd_memory_pressure_limit }}
+      DefaultMemoryPressureDurationSec={{ watchdog_oomd_memory_pressure_duration_sec }}
+    dest: /etc/systemd/oomd.conf.d/10-ansible.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  when: watchdog_oomd_enabled | bool
+  notify: restart systemd-oomd
+
+- name: Let systemd-oomd reclaim on swap exhaustion
+  copy:
+    content: |
+      [Slice]
+      ManagedOOMSwap=kill
+    dest: /etc/systemd/system/-.slice.d/10-oomd.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  when: watchdog_oomd_enabled | bool
+  notify: reload systemd
+
+# PSI is compiled in but off by default on RHEL kernels; oomd cannot start without it.
+- name: Check for pressure stall information
+  stat:
+    path: /proc/pressure/memory
+  register: _watchdog_psi
+
+- name: Enable systemd-oomd
+  systemd:
+    name: systemd-oomd.service
+    enabled: true
+    state: started
+  when:
+    - watchdog_oomd_enabled | bool
+    - _watchdog_psi.stat.exists
+
+- name: Report that systemd-oomd is waiting on PSI
+  debug:
+    msg: >-
+      systemd-oomd is installed but not started: /proc/pressure/memory is
+      missing. Reboot with psi=1 on the kernel command line to activate it.
+  when:
+    - watchdog_oomd_enabled | bool
+    - not _watchdog_psi.stat.exists

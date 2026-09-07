@@ -1,0 +1,12 @@
+- name: reexec systemd
+  command: systemctl daemon-reexec
+
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart systemd-oomd
+  systemd:
+    name: systemd-oomd.service
+    state: restarted
+  when: _watchdog_psi.stat.exists | default(false)
