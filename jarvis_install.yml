@@ -192,11 +192,17 @@
           - ssh
           - cockpit
           - dhcpv6-client
-          - dns
           - mdns # needed for Matter device discovery
           - http
         firewall_ports:
           - "{{ ports.mqtt }}/tcp"
+        firewall_rich_rules:
+          - rule family="ipv4" source address="192.168.0.0/24" service name="dns" accept
+          - rule family="ipv4" source address="192.168.1.0/24" service name="dns" accept
+          - rule family="ipv4" source address="192.168.27.64/27" service name="dns" accept
+          # podman
+          - rule family="ipv4" source address="10.88.0.0/16" service name="dns" accept
+          - rule family="ipv6" source address="fe80::/10" service name="dns" accept
 
     - include_role:
         name: wireguard
