@@ -82,7 +82,7 @@
       #     - /usr/local/share/shinobi/database:/var/lib/mysql:Z
       #     - /usr/local/share/shinobi/data:/home/Shinobi:Z
       #     - /dev/shm/shinobiStreams:/dev/shm/streams:Z
-      #     - /etc/localtime:/etc/localtime:ro,Z
+      #     - /etc/localtime:/etc/localtime:ro
       #     - /media/cctv:/media/cctv:Z
       #   ports:
       #     - 8080:8080
@@ -113,6 +113,15 @@
     - name: Configure hostname
       hostname:
         name: jarvis
+
+    - name: Restore SELinux contexts on host-shared paths
+      # -F because container_file_t is a customizable type, skipped otherwise
+      command: "restorecon -F -v {{ item }}"
+      loop:
+        - /etc/localtime
+      register: restorecon
+      changed_when: restorecon.stdout | length > 0
+      tags: selinux
 
     - include_role:
         name: kernel
