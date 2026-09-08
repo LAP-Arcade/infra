@@ -1,6 +1,7 @@
 - hosts: jarvis
   become: true
   vars:
+    freebox_dir: /opt/freebox
     quadlets:
       homeassistant:
         image: ghcr.io/home-assistant/home-assistant
@@ -139,6 +140,7 @@
         packages:
           - htop
           - ncdu
+          - opentofu
       tags: packages
     - name: Remove packages
       package:
@@ -182,6 +184,73 @@
         rsync_opts:
           - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
       tags: www
+
+    - name: Deploy Freebox tooling
+      tags: freebox
+      block:
+        - name: Create Freebox tooling directory
+          file:
+            path: "{{ freebox_dir }}"
+            state: directory
+            mode: u=rwx,g=rx,o=
+
+        - name: Synchronize Freebox tooling
+          synchronize:
+            src: terraform/freebox/
+            dest: "{{ freebox_dir }}/"
+            recursive: true
+            delete: true
+            rsync_opts:
+              - "--exclude=.env"
+              - "--exclude=.venv"
+              - "--exclude=bin"
+              - "--exclude=.terraform*"
+
+        - name: Check for Freebox secrets file
+          stat:
+            path: "{{ freebox_dir }}/.env"
+          register: freebox_env
+
+        - name: Restrict Freebox secrets file
+          file:
+            path: "{{ freebox_dir }}/.env"
+            owner: root
+            group: root
+            mode: u=rw,g=,o=
+          when: freebox_env.stat.exists
+
+        - name: Create Discord VPN bot service
+          include_role:
+            name: common
+            tasks_from: create_service
+          vars:
+            service_name: discord-vpn-bot
+            service_description: Discord bot managing the Freebox VPN users
+            service_workdir: "{{ freebox_dir }}"
+            service_script: |
+              {{ python_setup }}
+              ./setup.sh
+              set -a
+              source .env
+              set +a
+              tofu init -input=false
+              exec python discord_bot.py
+            service_state: stopped
+            service_enabled: false
+
+        - name: Create Freebox DNS enforcement service
+          include_role:
+            name: common
+            tasks_from: create_service
+          vars:
+            service_name: force-freebox-dns
+            service_description: Reset the Freebox DNS servers when they change
+            service_workdir: "{{ freebox_dir }}"
+            service_script: |
+              {{ python_setup }}
+              exec python force_dns_servers.py
+            service_state: stopped
+            service_enabled: false
 
     - include_role:
         name: frigate
