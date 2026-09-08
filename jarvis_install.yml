@@ -114,6 +114,19 @@
       hostname:
         name: jarvis
 
+    - name: Configure system locale
+      block:
+        - name: Install locale package
+          package:
+            name: glibc-langpack-en
+            state: present
+        - name: Set system locale
+          command: "localectl set-locale LANG={{ locale }}"
+          when: ansible_env.LANG | default('') != locale
+      tags: locale
+      vars:
+        locale: en_US.UTF-8
+
     - name: Restore SELinux contexts on host-shared paths
       # -F because container_file_t is a customizable type, skipped otherwise
       command: "restorecon -F -v {{ item }}"
@@ -158,7 +171,9 @@
         name: "{{ packages }}"
         state: absent
       vars:
-        packages: []
+        packages:
+          - langpacks-core-fr
+          - glibc-langpack-fr
       tags: packages
 
     - include_role:
