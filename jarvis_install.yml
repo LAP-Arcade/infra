@@ -30,6 +30,8 @@
           --storage-path /data
           --listen-address 127.0.0.1
           --primary-interface enp1s0
+        exec_pre: |
+          find /etc/matter-server -name '*.json.gz' -size 0 -print -delete;
         volumes:
           - /etc/matter-server:/data:Z
           - /run/dbus:/run/dbus:ro
