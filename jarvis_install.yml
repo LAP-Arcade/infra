@@ -360,9 +360,9 @@
           192.168.0.179: astro.lan
           192.168.0.199: wacca-mythos.lan
           192.168.0.211: dojo.cam
-          # 192.168.0.193: jarvis.lan ha.jarvis.lan
+          192.168.0.193: jarvis.lan ha.jarvis.lan
           # Freebox LAN
-          192.168.1.148: jarvis.lan ha.jarvis.lan
+          # 192.168.1.148: jarvis.lan ha.jarvis.lan
           192.168.1.254: freebox.lan
           # VPN LAN
           192.168.27.65: jarvis.lan ha.jarvis.lan
