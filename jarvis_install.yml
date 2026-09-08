@@ -151,6 +151,12 @@
         kernel_swap_size: 4G
 
     - include_role:
+        name: journal
+        apply:
+          tags: journal
+      tags: always
+
+    - include_role:
         name: watchdog
         apply:
           tags: watchdog

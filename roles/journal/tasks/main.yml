@@ -1,0 +1,35 @@
+- name: Configure a persistent journal
+  when: journal_persistent | bool
+  block:
+    - name: Ensure the journald drop-in directory exists
+      file:
+        path: /etc/systemd/journald.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: u=rwx,g=rx,o=rx
+
+    - name: Configure journald storage
+      copy:
+        content: |
+          [Journal]
+          Storage=persistent
+          SystemMaxUse={{ journal_max_use }}
+        dest: /etc/systemd/journald.conf.d/10-persistent.conf
+        owner: root
+        group: root
+        mode: u=rw,g=r,o=r
+      notify:
+        - restart systemd-journald
+        - flush journal to disk
+
+    - name: Create the persistent journal directory
+      file:
+        path: /var/log/journal
+        state: directory
+        owner: root
+        group: systemd-journal
+        mode: "2755"
+      notify:
+        - restart systemd-journald
+        - flush journal to disk

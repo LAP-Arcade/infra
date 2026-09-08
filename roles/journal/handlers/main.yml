@@ -1,0 +1,7 @@
+- name: restart systemd-journald
+  systemd:
+    name: systemd-journald.service
+    state: restarted
+
+- name: flush journal to disk
+  command: journalctl --flush

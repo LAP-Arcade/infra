@@ -1,0 +1,2 @@
+journal_persistent: true
+journal_max_use: 1G
