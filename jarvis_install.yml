@@ -359,3 +359,25 @@
           192.168.27.65: jarvis.lan ha.jarvis.lan
         hosts_map_to_delete:
           192.168.27.65: jarvis.vpn.lan
+
+    - name: Resolve through the local dnsmasq
+      tags: dns
+      block:
+        - name: Read current enp1s0 resolver settings
+          command: >-
+            nmcli -g ipv4.dns,ipv4.ignore-auto-dns,ipv6.dns,ipv6.ignore-auto-dns
+            connection show enp1s0
+          register: enp1s0_dns
+          changed_when: false
+
+        - name: Point enp1s0 at the local dnsmasq
+          when: enp1s0_dns.stdout_lines != ["127.0.0.1", "yes", "::1", "yes"]
+          block:
+            - name: Set enp1s0 resolvers
+              command: >-
+                nmcli connection modify enp1s0
+                ipv4.dns 127.0.0.1 ipv4.ignore-auto-dns yes
+                ipv6.dns ::1 ipv6.ignore-auto-dns yes
+
+            - name: Reapply enp1s0 to regenerate /etc/resolv.conf
+              command: nmcli device reapply enp1s0
