@@ -9,6 +9,8 @@ switch:
 
       # TP-Link entities
       - switch.chunithm
+      - switch.ddr
+      - switch.drs
       - switch.iidx_sdvx
       - switch.jubeat_x2
       - switch.wacca_x2
