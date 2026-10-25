@@ -1,0 +1,65 @@
+- hosts: mythos_routers
+  gather_facts: false
+
+  vars:
+    firewall_forwardings:
+      - src: lan
+        dest: wan
+      - src: lan
+        dest: vpn
+
+    firewall_zones:
+      - name: wan
+        input: ACCEPT
+
+  tasks:
+    - name: Install authorized SSH keys
+      openwrt_authorized_keys:
+        path: "{{ authorized_keys_path }}"
+        keys: "{{ ssh_public_keys }}"
+
+    - name: Install make_both_ports_lan.sh
+      openwrt_file:
+        path: /root/make_both_ports_lan.sh
+        content: "{{ lookup('file', 'make_both_ports_lan.sh') }}"
+        mode: "u=rwx,go=rx"
+
+    - name: Install slide-switch handlers
+      openwrt_file:
+        path: "/etc/rc.button/BTN_0"
+        mode: "u=rwx,go=rx"
+        content: |
+          #!/bin/sh
+          # The slider on the Mango
+
+          case "$ACTION" in
+          pressed) /root/make_both_ports_lan.sh 0 ;;
+          released) /root/make_both_ports_lan.sh 1 ;;
+          esac
+
+    - name: Ensure no handler is present for BTN_1 (not wired on the Mango)
+      openwrt_file:
+        path: /etc/rc.button/BTN_1
+        state: absent
+
+    - name: Ensure firewall forwardings
+      openwrt_uci_section:
+        type: forwarding
+        match:
+          src: "{{ item.src }}"
+          dest: "{{ item.dest }}"
+      loop: "{{ firewall_forwardings }}"
+      loop_control:
+        label: "{{ item.src }} -> {{ item.dest }}"
+
+    - name: Ensure firewall zone input policy
+      openwrt_uci_section:
+        type: zone
+        match:
+          name: "{{ item.name }}"
+        values:
+          input: "{{ item.input }}"
+        create: false
+      loop: "{{ firewall_zones }}"
+      loop_control:
+        label: "{{ item.name }} input={{ item.input }}"

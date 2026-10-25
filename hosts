@@ -3,3 +3,11 @@ jarvis
 
 [streaming_clients]
 john ansible_host=192.168.0.9
+
+[mythos_routers]
+wacca-mythos-meta.lan authorized_keys_path=/root/.ssh/authorized_keys
+wacca-mythos-tina.lan authorized_keys_path=/etc/dropbear/authorized_keys
+
+[mythos_routers:vars]
+ansible_user=root
+ansible_ssh_common_args=-o StrictHostKeyChecking=no
