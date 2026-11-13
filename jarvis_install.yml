@@ -332,6 +332,42 @@
           tags: homeassistant
       tags: always
 
+    # The Energy dashboard has no YAML config: HA keeps it in .storage/energy.
+    # Deploying overwrites any change made from the UI.
+    - name: Configure the Home Assistant Energy dashboard
+      tags: homeassistant
+      vars:
+        energy_store:
+          version: 1
+          minor_version: 3 # STORAGE_MINOR_VERSION of HA 2026.10
+          key: energy
+          data:
+            energy_sources: []
+            device_consumption:
+              - stat_consumption: sensor.iidx_sdvx_this_month_s_consumption
+              - stat_consumption: sensor.jubeat_x2_this_month_s_consumption
+              - stat_consumption: sensor.wacca_x2_this_month_s_consumption
+              - stat_consumption: sensor.chunithm_this_month_s_consumption
+              - stat_consumption: sensor.ddr_this_month_s_consumption
+              - stat_consumption: sensor.drs_this_month_s_consumption
+            device_consumption_water: []
+      block:
+        - name: Install the Energy dashboard preferences
+          copy:
+            content: "{{ energy_store | to_nice_json(indent=2) }}\n"
+            dest: /etc/homeassistant/.storage/energy
+            owner: root
+            group: root
+            mode: u=rw,g=,o=
+          register: energy_prefs
+
+        # HA only reads .storage/energy at startup.
+        - name: Restart Home Assistant to load the Energy dashboard
+          systemd:
+            name: homeassistant
+            state: restarted
+          when: energy_prefs is changed # noqa: no-handler -- the role's handler lives in the infra@tina submodule
+
     - include_role:
         name: dnsmasq
         apply:
